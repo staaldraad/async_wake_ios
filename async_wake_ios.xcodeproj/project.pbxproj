@@ -23,6 +23,7 @@
 		B0EF11171FCC784B00C1D14E /* symbols.c in Sources */ = {isa = PBXBuildFile; fileRef = B0EF11151FCC784B00C1D14E /* symbols.c */; };
 		B0F5AA3F1FDE87E90073FD88 /* early_kalloc.c in Sources */ = {isa = PBXBuildFile; fileRef = B0F5AA3D1FDE87E80073FD88 /* early_kalloc.c */; };
 		D84F05A21FE2D44D000D522E /* root.c in Sources */ = {isa = PBXBuildFile; fileRef = D84F05A01FE2D44D000D522E /* root.c */; };
+		D84F05A51FE2F753000D522E /* disable_protections.c in Sources */ = {isa = PBXBuildFile; fileRef = D84F05A31FE2F753000D522E /* disable_protections.c */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -56,6 +57,8 @@
 		B0F5AA3E1FDE87E80073FD88 /* early_kalloc.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = early_kalloc.h; sourceTree = "<group>"; };
 		D84F05A01FE2D44D000D522E /* root.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = root.c; sourceTree = "<group>"; };
 		D84F05A11FE2D44D000D522E /* root.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = root.h; sourceTree = "<group>"; };
+		D84F05A31FE2F753000D522E /* disable_protections.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = disable_protections.c; sourceTree = "<group>"; };
+		D84F05A41FE2F753000D522E /* disable_protections.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = disable_protections.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -117,6 +120,8 @@
 				B0F5AA3E1FDE87E80073FD88 /* early_kalloc.h */,
 				D84F05A01FE2D44D000D522E /* root.c */,
 				D84F05A11FE2D44D000D522E /* root.h */,
+				D84F05A31FE2F753000D522E /* disable_protections.c */,
+				D84F05A41FE2F753000D522E /* disable_protections.h */,
 			);
 			path = async_wake_ios;
 			sourceTree = "<group>";
@@ -195,6 +200,7 @@
 			files = (
 				B003EB351FC583CB00C58441 /* kmem.c in Sources */,
 				B0EF11171FCC784B00C1D14E /* symbols.c in Sources */,
+				D84F05A51FE2F753000D522E /* disable_protections.c in Sources */,
 				B07A02411FB09B6F0018ACE5 /* ViewController.m in Sources */,
 				B04E25091FCD6DB300F09CCE /* kutils.c in Sources */,
 				B07A024C1FB09B6F0018ACE5 /* main.m in Sources */,

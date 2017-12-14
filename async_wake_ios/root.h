@@ -11,6 +11,8 @@
 
 #include <stdio.h>
 
+uint64_t get_process_pid(uint32_t);
+uint64_t get_process_pid_from_name(char*);
 uid_t get_root(void);
 void reset_root(uid_t);
 #endif /* root_h */

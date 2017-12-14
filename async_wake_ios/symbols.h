@@ -26,7 +26,8 @@ enum kstruct_offset {
   
   /* struct proc */
   KSTRUCT_OFFSET_PROC_PID,
-  
+  KSTRUCT_OFFSET_PROC_COMM,
+    
   /* struct ipc_space */
   KSTRUCT_OFFSET_IPC_SPACE_IS_TABLE,
   
