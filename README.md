@@ -24,5 +24,5 @@ The technique for getting root was taken from the work done by:
 I've tried to comment the above work with my understanding and what I've learned in the process. If I've got something fundamentaly wrong please let me know!
 
 
-
+![Get root](/root_screenshot.png "Get root and read /etc/master.passwd")
 
