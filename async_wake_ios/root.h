@@ -41,8 +41,8 @@
 #define CS_ENTITLEMENT_FLAGS    (CS_GET_TASK_ALLOW | CS_INSTALLER)
 
 //uint64_t get_csflags_loc(uint32_t);
-uint32_t get_csflags();
-uint32_t set_csflags(uint32_t);
+uint32_t get_csflags(uint32_t);
+uint32_t set_csflags(uint32_t,uint32_t);
 uint64_t get_process_bsdinfo(uint32_t);
 uint64_t get_process_bsdinfo_from_name(char*);
 uid_t get_root(void);

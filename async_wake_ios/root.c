@@ -80,16 +80,16 @@ uint64_t get_process_bsdinfo_from_name(char* procname){
 
 //get the current value of cflags for a given process.
 //requires the memory location of the cflags, use get_csflags_loc to retrieve this
-uint32_t get_csflags(){
-    uint64_t proc_bsd = get_process_bsdinfo(getpid());
+uint32_t get_csflags(uint32_t pid){
+    uint64_t proc_bsd = get_process_bsdinfo(pid);
     uint32_t csflags = rk32(proc_bsd + koffset(KSTRUCT_OFFSET_CFLAGS));
     return csflags;
 }
 
 //sets the csflags of a process. Takes the memory location of the csflags to set
 //get the memory location using get_csflags_loc
-uint32_t set_csflags(uint32_t csflag){
-    uint64_t proc_bsd = get_process_bsdinfo(getpid());
+uint32_t set_csflags(uint32_t pid, uint32_t csflag){
+    uint64_t proc_bsd = get_process_bsdinfo(pid);
     uint32_t n_csflags = rk32(proc_bsd + koffset(KSTRUCT_OFFSET_CFLAGS)) | csflag;
     wk32(proc_bsd+koffset(KSTRUCT_OFFSET_CFLAGS), n_csflags);
     return -1;
@@ -170,9 +170,9 @@ void reset_root(uid_t olduid){
 }
 
 void setPlatform(){
-    uint32_t c_csflags = get_csflags();
+    uint32_t c_csflags = get_csflags(getpid());
     printf("Current csflags: 0x%08x\n",c_csflags);
     printf("Setting csflags 'CS_PLATFORM_BINARY'\n");
-    set_csflags(0x4000000);
-    printf("New csflags: 0x%08x\n",get_csflags());
+    set_csflags(getpid(),0x4000000);
+    printf("New csflags: 0x%08x\n",get_csflags(getpid()));
 }
