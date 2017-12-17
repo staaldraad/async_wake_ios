@@ -21,6 +21,6 @@
 #include "disable_protections.h"
 
 void disable_amfid(){
-   uint64_t amfid_pid = get_process_pid_from_name("amfid");
+   uint64_t amfid_pid = get_process_bsdinfo_from_name("amfid");
     
 }
