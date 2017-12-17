@@ -119,16 +119,30 @@ uid_t get_root(){
     
     /* KSTRUCT
      * been trying to find an example of what the structs look like
-     * |----------------|
-     * |___ kstruct ____|
-     * |                |
-     * |                |
-     * |----------------|
-     * |     ucred      | kstruct + 0x100 - holds the user credentails struct
-     * |----------------| I think it is this --> https://github.com/apple/darwin-xnu/blob/5394bb038891708cd4ba748da79b90a33b19f82e/bsd/sys/ucred.h
-     * |                |
-     * |                |
-     * |----------------|
+     *
+     
+        KSTRUCT
+     +----------------------------+
+     |                            |
+     +----------------------------+         +----------------+--------+
+     |        BSD_INFO            +-------> | Pid : bsd_info + 0x10   |
+     |                            |         |                         |
+     +----------------------------+         +-----------------+-------+
+     |                            |         | ucred: bsd_info + 0x100 |
+     |                            |         |                         |
+     |                            |         +---------------------+---+
+     |                            |         | Proc_name: bsd_info +   |
+     |                            |         |            0x268        |
+     |                            |         +--------------------+----+
+     |                            |         | cs_flags: bsd_info +    |
+     |                            |         |           0x2a8         |
+     +----------------------------+         +-------------------------+
+
+
+     * bsd_info + 0x100 - holds the user credentails struct
+     * I think it is this -->
+     * https://github.com/apple/darwin-xnu/blob/5394bb038891708cd4ba748da79b90a33b19f82e/bsd/sys/ucred.h
+     *
      * we want to swap out the ucred struct to match that of the kernel. This means our process now has kernel permissions
      */
     //get the ucred from the kernel KStruct
