@@ -462,7 +462,7 @@ uint64_t find_strref(const char *string, int n, int prelink){
 }
 
 //find location of the rootvnode so we can remount RW
-//this calculation was found by stek29 ; https://github.com/stek29/async_awake-fun
+//this calculation was found by @theninjaprawn ; https://github.com/ninjaprawn/async_awake-fun/blob/master/async_wake_ios/the_fun_part/patchfinder64.c
 uint64_t find_rootvnode(void) {
     // Find the first reference to the string
     uint64_t ref = find_strref("/var/run/.vfs_rsrc_streams_%p%x", 1, 0);

@@ -52,5 +52,6 @@ void printFile(char*);
 int remountRW(void);
 uid_t get_root(mach_port_t);
 void reset_root(uid_t);
-void setPlatform(void);
+void setPlatform(uint32_t);
+void copyFiles(char*);
 #endif /* root_h */

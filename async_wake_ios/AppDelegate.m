@@ -1,5 +1,6 @@
 #import "AppDelegate.h"
 #include "async_wake.h"
+#include <mach-o/dyld.h>
 
 @interface AppDelegate ()
 
@@ -7,10 +8,26 @@
 
 @implementation AppDelegate
 
+const char* realPath() {
+    char path[4096];
+    uint32_t size = sizeof(path);
+    _NSGetExecutablePath(path, &size);
+    char *pt = realpath(path, NULL);
+    return pt;
+}
 
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
   // Override point for customization after application launch.
-  go();
+  //pass through cwd
+
+    char path[4096];
+    uint32_t size = sizeof(path);
+    _NSGetExecutablePath(path, &size);
+    char *pt = realpath(path, NULL);
+    
+    NSString *execpath = [[NSString stringWithUTF8String:pt] stringByDeletingLastPathComponent];
+    
+   go([execpath UTF8String]);
   return YES;
 }
 

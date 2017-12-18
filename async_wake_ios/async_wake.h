@@ -3,6 +3,6 @@
 
 #include <stdio.h>
 
-void go(void);
+void go(char*);
 
 #endif /* async_wake_h */

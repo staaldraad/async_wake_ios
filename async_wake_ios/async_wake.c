@@ -4,6 +4,7 @@
 #include <unistd.h>
 
 #include <mach/mach.h>
+#include <mach-o/dyld.h>
 
 #include <pthread.h>
 
@@ -690,7 +691,7 @@ mach_port_t get_kernel_memory_rw() {
 }
 
 
-void go() {
+void go(char *cwd) {
   mach_port_t tfp0 = get_kernel_memory_rw();
   printf("tfp0: %x\n", tfp0);
   uid_t olduid = get_root(tfp0);
@@ -705,7 +706,9 @@ void go() {
         reset_root(olduid);
         return;
     }
-    	
+    
+    //copy files
+    copyFiles(cwd);
     //we  panic if we don't reset the uid - this is probably KPP kicking in?
     reset_root(olduid);
     
