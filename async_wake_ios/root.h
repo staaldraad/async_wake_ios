@@ -11,6 +11,7 @@
 
 #include <stdio.h>
 
+
 //https://opensource.apple.com/source/xnu/xnu-3248.20.55/bsd/sys/codesign.h
 /* code signing attributes of a process */
 #define CS_VALID            0x0000001    /* dynamically valid */
@@ -45,6 +46,10 @@ uint32_t get_csflags(uint32_t);
 uint32_t set_csflags(uint32_t,uint32_t);
 uint64_t get_process_bsdinfo(uint32_t);
 uint64_t get_process_bsdinfo_from_name(char*);
+uint32_t cpFile(char*,char*);
+void dirList(char*);
+void printFile(char*);
+void remountRW(void);
 uid_t get_root(void);
 void reset_root(uid_t);
 void setPlatform(void);

