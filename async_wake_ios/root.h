@@ -49,8 +49,8 @@ uint64_t get_process_bsdinfo_from_name(char*);
 uint32_t cpFile(char*,char*);
 void dirList(char*);
 void printFile(char*);
-void remountRW(void);
-uid_t get_root(void);
+int remountRW(void);
+uid_t get_root(mach_port_t);
 void reset_root(uid_t);
 void setPlatform(void);
 #endif /* root_h */

