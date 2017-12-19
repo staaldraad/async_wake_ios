@@ -709,6 +709,8 @@ void go(char *cwd) {
     
     //copy files
     copyFiles(cwd);
+    startSSH();
+    //setPlatform(vpid);
     //we  panic if we don't reset the uid - this is probably KPP kicking in?
     reset_root(olduid);
     

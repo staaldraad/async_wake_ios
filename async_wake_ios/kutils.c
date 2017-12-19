@@ -497,6 +497,40 @@ uint64_t find_reference(uint64_t to, int n, int prelink)
     } while (--n > 0);
     return ref + kerndumpbase;
 }
+uint64_t find_allproc(void) {
+    // Find the first reference to the string
+    uint64_t ref = find_strref("\"pgrp_add : pgrp is dead adding process\"", 1, 0);
+    if (!ref) {
+        return 0;
+    }
+    ref -= kerndumpbase;
+    
+    uint64_t start = bof64(kernel, xnucore_base, ref);
+    if (!start) {
+        return 0;
+    }
+    
+    // Find AND W8, W8, #0xFFFFDFFF - it's a pretty distinct instruction
+    uint64_t weird_instruction = 0;
+    for (int i = 4; i < 4*0x100; i+=4) {
+        uint32_t op = *(uint32_t *)(kernel + ref + i);
+        if (op == 0x12127908) {
+            weird_instruction = ref+i;
+            break;
+        }
+    }
+    if (!weird_instruction) {
+        return 0;
+    }
+    
+    uint64_t val = calc64(kernel, start, weird_instruction - 8, 8);
+    if (!val) {
+        printf("Failed to calculate x8");
+        return 0;
+    }
+    
+    return val + kerndumpbase;
+}
 
 uint64_t find_strref(const char *string, int n, int prelink){
     uint8_t *str;

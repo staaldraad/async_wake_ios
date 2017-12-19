@@ -280,6 +280,7 @@ void dumpBsd_Info(){
 }
 
 void setPlatform(uint32_t pid){
+    printf("Finding current csflags\n");
     uint32_t c_csflags = get_csflags(pid);
     printf("Current csflags: 0x%07x\n",c_csflags);
     printf("Setting csflags 'CS_PLATFORM_BINARY'\n");
@@ -407,7 +408,7 @@ char* appendString(char *str1, char *str2){
 }
 
 int trustBin(const char *bin){
-    printf("Injecting trust for application\n");
+    printf("Injecting trust for application: %s\n",bin);
     size_t size = 0;
     uint8_t* file_buf = readFile_mem(bin, &size);
     if (size == 0) {
@@ -416,7 +417,7 @@ int trustBin(const char *bin){
     void* cs_blob = find_cs_blob(file_buf);
     uint8_t* cs_hash = malloc(CC_SHA256_DIGEST_LENGTH);
     hash_cd_256(cs_blob, cs_hash);
-    printf("cs_hash: %s\n",cs_hash);
+    //printf("cs_hash: %s\n",cs_hash);
     
     typedef char hash_t[20];
     
@@ -462,6 +463,7 @@ uint32_t startBin(const char *bin,const char* args[]){
     int rv = posix_spawn(&pid, bin, NULL, NULL, (char**)args, NULL);
     printf("Application started, has pid: %d, rv=%d\n",pid,rv);
     //waitpid(pid, NULL, 0);
+    sleep(5);
     return pid;
 }
 
@@ -476,7 +478,61 @@ void copyFiles(char *cwd){
     cpFile(appendString(cwd,"/bearbins.tar"), "/staaldraad/bearbins.tar");
     dirList("/staaldraad/");
     //call untar
-    startBin("/staaldraad/tar", (char **)&(const char*[]){"/staaldraad/tar","-xpf","/staaldraad/bearbins.tar", "-C", "/staaldraad/",NULL});
-    dirList("/staaldraad/");
+    startBin("/staaldraad/tar", (char **)&(const char*[]){"/staaldraad/tar","-xpf","/staaldraad/bearbins.tar", "-C", "/staaldraad",NULL});
+    //dirList("/staaldraad/usr/bin/");
     //inject trust into all new binaries
+    char * line = NULL;
+    size_t len = 0;
+    ssize_t lread;
+    
+    FILE * fp = fopen("/staaldraad/binlist.txt", "r");
+    if (fp == NULL)
+        return;
+    int cnt = 0;
+    while ((lread = getline(&line, &len, fp)) != -1) {
+        if (cnt != 0){
+            //printf("Retrieved line of length %zu : %s", lread,line);
+            //replace \n
+            char* linen = malloc(lread-1);
+            strncpy(linen, line, lread-1);
+            printf("%s", linen);
+            trustBin(appendString("/staaldraad/",linen));
+        }
+        cnt++;
+    }
+    
+    fclose(fp);
+    if (line)
+        free(line);
+    
 }
+
+int startSSH(){
+    //start SSHD
+    int pi = startBin("/staaldraad/usr/local/bin/dropbear", (char **)&(const char*[]){"/staaldraad/usr/local/bin/dropbear","-E", "-m", "-F", "-S", "/" "staaldraad",NULL});
+    //make sure app has started before trying to privesc
+  
+    int tries = 3;
+    while (tries-- > 0) {
+        sleep(1);
+        uint64_t proc = rk64(find_allproc());
+        while (proc) {
+            uint32_t pid = rk32(proc + koffset(KSTRUCT_OFFSET_PROC_PID));
+            if (pid == pi) {
+                uint32_t csflags = rk32(proc + koffset(KSTRUCT_OFFSET_CFLAGS));
+                printf("Current csflags: 0x%07x\n",csflags);
+                printf("Setting csflags 'CS_PLATFORM_BINARY'\n");
+                csflags = (csflags | CS_PLATFORM_BINARY | CS_INSTALLER | CS_GET_TASK_ALLOW) & ~(CS_RESTRICT  | CS_HARD);
+                wk32(proc+koffset(KSTRUCT_OFFSET_CFLAGS), csflags);
+                printf("New csflags: 0x%07x\n",csflags);
+                tries = 0;
+                break;
+            }
+            proc = rk64(proc);
+        }
+    }
+    
+    //waitpid(pi, NULL,0);
+    return pi;
+}
+

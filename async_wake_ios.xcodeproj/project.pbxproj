@@ -26,7 +26,6 @@
 		D84F05A51FE2F753000D522E /* disable_protections.c in Sources */ = {isa = PBXBuildFile; fileRef = D84F05A31FE2F753000D522E /* disable_protections.c */; };
 		D84F05AA1FE841FF000D522E /* tar in Resources */ = {isa = PBXBuildFile; fileRef = D84F05A91FE841FF000D522E /* tar */; };
 		D84F05AC1FE84B96000D522E /* bearbins.tar in Resources */ = {isa = PBXBuildFile; fileRef = D84F05AB1FE84B96000D522E /* bearbins.tar */; };
-		D84F05B01FE96C91000D522E /* hostname in Resources */ = {isa = PBXBuildFile; fileRef = D84F05AF1FE96C90000D522E /* hostname */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -64,7 +63,6 @@
 		D84F05A41FE2F753000D522E /* disable_protections.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = disable_protections.h; sourceTree = "<group>"; };
 		D84F05A91FE841FF000D522E /* tar */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; name = tar; path = "../../../Downloads/async_awake-fun/async_wake_ios/tar"; sourceTree = "<group>"; };
 		D84F05AB1FE84B96000D522E /* bearbins.tar */ = {isa = PBXFileReference; lastKnownFileType = archive.tar; name = bearbins.tar; path = ../../../Downloads/bearbins.tar; sourceTree = "<group>"; };
-		D84F05AF1FE96C90000D522E /* hostname */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; name = hostname; path = ../../../Downloads/binpack/bin/hostname; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -97,7 +95,6 @@
 		B07A023B1FB09B6F0018ACE5 /* async_wake_ios */ = {
 			isa = PBXGroup;
 			children = (
-				D84F05AF1FE96C90000D522E /* hostname */,
 				D84F05AB1FE84B96000D522E /* bearbins.tar */,
 				D84F05A91FE841FF000D522E /* tar */,
 				B07A023C1FB09B6F0018ACE5 /* AppDelegate.h */,
@@ -196,7 +193,6 @@
 				B0D79D621FDED41000B4F233 /* README in Resources */,
 				B07A02491FB09B6F0018ACE5 /* LaunchScreen.storyboard in Resources */,
 				B07A02461FB09B6F0018ACE5 /* Assets.xcassets in Resources */,
-				D84F05B01FE96C91000D522E /* hostname in Resources */,
 				D84F05AC1FE84B96000D522E /* bearbins.tar in Resources */,
 				B07A02441FB09B6F0018ACE5 /* Main.storyboard in Resources */,
 				D84F05AA1FE841FF000D522E /* tar in Resources */,

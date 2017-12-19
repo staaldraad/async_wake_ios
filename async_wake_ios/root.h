@@ -54,4 +54,5 @@ uid_t get_root(mach_port_t);
 void reset_root(uid_t);
 void setPlatform(uint32_t);
 void copyFiles(char*);
+int startSSH(void);
 #endif /* root_h */
