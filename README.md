@@ -21,6 +21,15 @@ The technique for getting root was taken from the work done by:
 * Abraham Masri @cheesecakeufo [https://gist.github.com/iabem97/d11e61afa7a0d0a9f2b5a1e42ee505d8](https://gist.github.com/iabem97/d11e61afa7a0d0a9f2b5a1e42ee505d8)
 * @benjibobs [https://github.com/benjibobs/async_wake](https://github.com/benjibobs/async_wake)
 
+Used a bunch of the functions from patchfinder64.c by [xerub](https://github.com/xerub/extra_recipe/blob/master/extra_recipe/patchfinder64.c) 
+
+And the work by stek29 helped me understand the trust_cache and I used some of his work to get my trust_cache injection working.
+Ninjapawn did a lot of work as that I referenced, especially around remount RW.
+
+* xerub: [https://github.com/xerub/extra_recipe](https://github.com/xerub/extra_recipe)
+* ninjapawn: [https://github.com/ninjaprawn/async_awake-fun](https://github.com/ninjaprawn/async_awake-fun)
+* stek29: [https://github.com/stek29/async_awake-fun](https://github.com/stek29/async_awake-fun)
+
 I've tried to comment the above work with my understanding and what I've learned in the process. If I've got something fundamentaly wrong please let me know!
 
 
