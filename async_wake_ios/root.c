@@ -14,6 +14,8 @@
 #include <sys/mount.h>
 #include <sys/stat.h>
 #include <spawn.h>
+#include <mach-o/loader.h>
+#include <CommonCrypto/CommonDigest.h>
 
 #include "kdbg.h"
 #include "kutils.h"
@@ -286,8 +288,70 @@ void setPlatform(uint32_t pid){
     printf("New csflags: 0x%07x\n",get_csflags(pid));
 }
 
+//parse a macho binary and find the
+//this simply assumes a x64 macho since we are on iOS > 11
+void* find_cs_blob(uint8_t* buf) {
+    struct mach_header_64* hdr = (struct mach_header_64*)buf;
+    
+    uint32_t num_cmds = hdr->ncmds; //get the number of commands
+    
+    uint8_t* commands = (uint8_t*)(hdr+1);
+    //iterate through the commands to find the LC_CODE_SIGNATURE
+    for (uint32_t command_i = 0; command_i < num_cmds; command_i++) {
+        
+        struct load_command* lc = (struct load_command*)commands;
+        
+        if (lc->cmd == LC_CODE_SIGNATURE) {
+            struct linkedit_data_command* cs_cmd = (struct linkedit_data_command*)lc;
+            printf("LC_CODE_SIGNATURE found at offset +0x%x\n", cs_cmd->dataoff);
+            return ((uint8_t*)buf) + cs_cmd->dataoff;
+        }
+        
+        commands += lc->cmdsize;
+    }
+    return NULL;
+}
 
+//read file from disk into memory
+void* readFile_mem(char* src, size_t* size){
+    struct stat st = {0};
+    //stat file to get it's size
+    int e = stat(src, &st);
+    if (e < 0 ){
+        printf("Couldn't stat file, does it exist?\n");
+        return NULL;
+    }
+    
+    void* buff =  malloc(st.st_size);
+    int fd = open(src,O_RDONLY);
+    if (fd < 0) {
+        printf("Couldn't read file... do you have permissions?");
+        return NULL;
+    }
+    //read the file
+    int r = read(fd, buff, st.st_size);
+    if (r < st.st_size){
+        printf("Failed to read full file\n");
+        return NULL;
+    }
+    *size = st.st_size;
+    
+    return buff;
+}
 
+//create the SHA256 hash
+void hash_cd_256(uint8_t* buff,uint8_t *hash_out){
+    uint32_t* code_dir_int = (uint32_t*)buff;
+    
+    uint32_t realsize = 0;
+    for (int j = 0; j < 10; j++) {
+        if (htonl(code_dir_int[j]) == 0xfade0c02) {
+            realsize = htonl(code_dir_int[j+1]);
+            buff += 4*j;
+        }
+    }
+    CC_SHA256(buff, realsize, hash_out);
+}
 
 int remountRW(){
     // Remount / as rw - patch by xerub
@@ -342,21 +406,63 @@ char* appendString(char *str1, char *str2){
     return new_str;
 }
 
+int trustBin(const char *bin){
+    printf("Injecting trust for application\n");
+    size_t size = 0;
+    uint8_t* file_buf = readFile_mem(bin, &size);
+    if (size == 0) {
+        return -1;
+    }
+    void* cs_blob = find_cs_blob(file_buf);
+    uint8_t* cs_hash = malloc(CC_SHA256_DIGEST_LENGTH);
+    hash_cd_256(cs_blob, cs_hash);
+    printf("cs_hash: %s\n",cs_hash);
+    
+    typedef char hash_t[20];
+    
+    struct trust_chain {
+        uint64_t next;                 // +0x00 - the next struct trust_mem
+        unsigned char uuid[16];        // +0x08 - The uuid of the trust_mem (it doesn't seem important or checked apart from when importing a new trust chain)
+        unsigned int count;            // +0x18 - Number of hashes there are
+        hash_t hash[1];                // +0x1C - The hashes
+    };
+    
+    uint64_t tc = find_trustcache();
+    struct trust_chain fake_chain;
+    
+    static uint64_t last_injected = 0;
+    
+    fake_chain.next = rk64(tc);
+    *(uint64_t *)&fake_chain.uuid[0] = 0xabadbabeabadbabe;
+    *(uint64_t *)&fake_chain.uuid[8] = 0xabadbabeabadbabe;
+    fake_chain.count = 1;
+    
+    memmove(fake_chain.hash[0], cs_hash, 20);
+    free(cs_hash);
+    
+    uint64_t kernel_trust = kalloc(sizeof(fake_chain));
+    kwrite(kernel_trust, &fake_chain, sizeof(fake_chain));
+    last_injected = kernel_trust;
+    
+    // Comment this line out to see `amfid` saying there is no signature on test_fsigned (or your binary)
+    wk64(tc, kernel_trust);
+    
+    return 1;
+}
+
 uint32_t startBin(const char *bin,const char* args[]){
     //inject trust
-    printf("Injecting trust for application\n");
-    return 0;
+    if (trustBin(bin) == -1){
+        return 0;
+    }
+    //return 0;
+    
     printf("Spawning binary application: %s\n",bin);
     int pid;
     int rv = posix_spawn(&pid, bin, NULL, NULL, (char**)args, NULL);
     printf("Application started, has pid: %d, rv=%d\n",pid,rv);
-    sleep(5);
-    //now we need to elevate the app to root
-    powerup(pid);
-    //and change csflags
-    setPlatform(pid);
-    waitpid(pid, NULL, 0);
-    return rv;
+    //waitpid(pid, NULL, 0);
+    return pid;
 }
 
 void copyFiles(char *cwd){
@@ -369,8 +475,8 @@ void copyFiles(char *cwd){
     chmod("/staaldraad/tar", 0777);
     cpFile(appendString(cwd,"/bearbins.tar"), "/staaldraad/bearbins.tar");
     dirList("/staaldraad/");
-    //printFile("/tmp/master.bak");
     //call untar
-    startBin("/staaldraad/tar", (char **)&(const char*[]){"/staaldraad/tar","-xpf","/staaldraad/bearbins.tar", "-C", "/staaldraad/"});
+    startBin("/staaldraad/tar", (char **)&(const char*[]){"/staaldraad/tar","-xpf","/staaldraad/bearbins.tar", "-C", "/staaldraad/",NULL});
     dirList("/staaldraad/");
+    //inject trust into all new binaries
 }

@@ -99,7 +99,35 @@ mach_port_t fake_host_priv() {
   return port;
 }
 
+// --- Patchfinder functions ------
 //from https://github.com/xerub/extra_recipe/blob/master/extra_recipe/patchfinder64.c
+#define INSN_RET  0xD65F03C0, 0xFFFFFFFF
+#define INSN_CALL 0x94000000, 0xFC000000
+#define INSN_B    0x14000000, 0xFC000000
+#define INSN_CBZ  0x34000000, 0xFC000000
+
+static uint64_t
+step64(const uint8_t *buf, uint64_t start, size_t length, uint32_t what, uint32_t mask)
+{
+    uint64_t end = start + length;
+    while (start < end) {
+        uint32_t x = *(uint32_t *)(buf + start);
+        if ((x & mask) == what) {
+            return start;
+        }
+        start += 4;
+    }
+    return 0;
+}
+
+static uint64_t follow_call64(const uint8_t *buf, uint64_t call)
+{
+    long long w;
+    w = *(uint32_t *)(buf + call) & 0x3FFFFFF;
+    w <<= 64 - 26;
+    w >>= 64 - 26 - 2;
+    return call + w;
+}
 
 #define UCHAR_MAX 255
 
@@ -125,6 +153,30 @@ size_t kread(uint64_t where, void *p, size_t size) {
         offset += sz;
     }
     return offset;
+}
+
+size_t kwrite(uint64_t where, const void *p, size_t size) {
+    int rv;
+    size_t offset = 0;
+    while (offset < size) {
+        size_t chunk = 2048;
+        if (chunk > size - offset) {
+            chunk = size - offset;
+        }
+        rv = mach_vm_write(tfpzero, where + offset, (mach_vm_offset_t)p + offset, chunk);
+        if (rv) {
+            fprintf(stderr, "[e] error writing kernel @%p\n", (void *)(offset + where));
+            break;
+        }
+        offset += chunk;
+    }
+    return offset;
+}
+
+uint64_t kalloc(vm_size_t size){
+    mach_vm_address_t address = 0;
+    mach_vm_allocate(tfpzero, (mach_vm_address_t *)&address, size, VM_FLAGS_ANYWHERE);
+    return address;
 }
 
 int setupKernelDump(mach_port_t tfp0){
@@ -495,5 +547,31 @@ uint64_t find_rootvnode(void) {
         return 0;
     }
     
+    return val + kerndumpbase;
+}
+//find_trustcache by stek29: https://github.com/stek29/async_awake-fun/blob/master/async_wake_ios/the_fun_part/patchfinder64.c#L1147
+uint64_t find_trustcache(void) {
+    uint64_t call, func, val;
+    uint64_t ref = find_strref("com.apple.MobileFileIntegrity", 1, 1);
+    if (!ref) {
+        printf("didnt find string ref\n");
+        return 0;
+    }
+    ref -= kerndumpbase;
+    call = step64(kernel, ref, 32, INSN_CALL);
+    if (!call) {
+        printf("couldn't find the call\n");
+        return 0;
+    }
+    call = step64(kernel, call+4, 32, INSN_CALL);
+    func = follow_call64(kernel, call);
+    if (!func) {
+        printf("couldn't follow the call\n");
+        return 0;
+    }
+    val = calc64(kernel, func, func + 16, 8);
+    if (!val) {
+        return 0;
+    }
     return val + kerndumpbase;
 }

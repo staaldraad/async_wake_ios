@@ -12,4 +12,8 @@ uint64_t current_thread(void);
 mach_port_t fake_host_priv(void);
 int setupKernelDump(mach_port_t);
 uint64_t find_strref(const char*,int,int);
+
+size_t kread(uint64_t , void*, size_t );
+size_t kwrite(uint64_t , const void* , size_t );
+uint64_t kalloc(vm_size_t );
 #endif /* kutils_h */
