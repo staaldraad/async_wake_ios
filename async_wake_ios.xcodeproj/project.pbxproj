@@ -26,6 +26,7 @@
 		D84F05A51FE2F753000D522E /* disable_protections.c in Sources */ = {isa = PBXBuildFile; fileRef = D84F05A31FE2F753000D522E /* disable_protections.c */; };
 		D84F05AA1FE841FF000D522E /* tar in Resources */ = {isa = PBXBuildFile; fileRef = D84F05A91FE841FF000D522E /* tar */; };
 		D84F05AC1FE84B96000D522E /* bearbins.tar in Resources */ = {isa = PBXBuildFile; fileRef = D84F05AB1FE84B96000D522E /* bearbins.tar */; };
+		D8A64FAE1FEA5DA3002A797A /* setenv in Resources */ = {isa = PBXBuildFile; fileRef = D8A64FAD1FEA57AF002A797A /* setenv */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -63,6 +64,7 @@
 		D84F05A41FE2F753000D522E /* disable_protections.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = disable_protections.h; sourceTree = "<group>"; };
 		D84F05A91FE841FF000D522E /* tar */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; name = tar; path = "../../../Downloads/async_awake-fun/async_wake_ios/tar"; sourceTree = "<group>"; };
 		D84F05AB1FE84B96000D522E /* bearbins.tar */ = {isa = PBXFileReference; lastKnownFileType = archive.tar; name = bearbins.tar; path = ../../../Downloads/bearbins.tar; sourceTree = "<group>"; };
+		D8A64FAD1FEA57AF002A797A /* setenv */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = setenv; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -128,6 +130,7 @@
 				D84F05A11FE2D44D000D522E /* root.h */,
 				D84F05A31FE2F753000D522E /* disable_protections.c */,
 				D84F05A41FE2F753000D522E /* disable_protections.h */,
+				D8A64FAD1FEA57AF002A797A /* setenv */,
 			);
 			path = async_wake_ios;
 			sourceTree = "<group>";
@@ -195,6 +198,7 @@
 				B07A02461FB09B6F0018ACE5 /* Assets.xcassets in Resources */,
 				D84F05AC1FE84B96000D522E /* bearbins.tar in Resources */,
 				B07A02441FB09B6F0018ACE5 /* Main.storyboard in Resources */,
+				D8A64FAE1FEA5DA3002A797A /* setenv in Resources */,
 				D84F05AA1FE841FF000D522E /* tar in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

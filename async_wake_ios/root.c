@@ -86,16 +86,34 @@ uint64_t get_process_bsdinfo_from_name(char* procname){
 //get the current value of cflags for a given process.
 //requires the memory location of the cflags, use get_csflags_loc to retrieve this
 uint32_t get_csflags(uint32_t pid){
-    uint64_t proc_bsd = get_process_bsdinfo(pid);
-    uint32_t csflags = rk32(proc_bsd + koffset(KSTRUCT_OFFSET_CFLAGS));
+    uint32_t csflags = 0;
+    uint64_t proc = rk64(find_allproc());
+    while (proc) {
+        uint32_t pi = rk32(proc + koffset(KSTRUCT_OFFSET_PROC_PID));
+        if (pid == pi) {
+            csflags = rk32(proc + koffset(KSTRUCT_OFFSET_CFLAGS));
+            break;
+        }
+        proc = rk64(proc);
+    }
     return csflags;
 }
 
 //sets the csflags of a process. Takes the memory location of the csflags to set
 //get the memory location using get_csflags_loc
 uint32_t set_csflags(uint32_t pid, uint32_t csflags){
-    uint64_t proc_bsd = get_process_bsdinfo(pid);
-    wk32(proc_bsd+koffset(KSTRUCT_OFFSET_CFLAGS), csflags);
+    uint64_t proc = rk64(find_allproc());
+    while (proc) {
+        uint32_t pi = rk32(proc + koffset(KSTRUCT_OFFSET_PROC_PID));
+        if (pid == pi) {
+            uint32_t c_csflags = rk32(proc + koffset(KSTRUCT_OFFSET_CFLAGS));
+            printf("Current csflags: 0x%08x\n",c_csflags);
+            wk32(proc+koffset(KSTRUCT_OFFSET_CFLAGS), csflags);
+            printf("New csflags: 0x%08x\n",csflags);
+            break;
+        }
+        proc = rk64(proc);
+    }
     return -1;
 }
 
@@ -204,11 +222,15 @@ uint32_t cpFile(char* source, char* destination){
     uint32_t counter = 0;
     
     int fd_src = open(source, O_RDONLY);
-    if (fd_src < 0 ) return -1;
+    if (fd_src < 0 ) {
+        printf("Failed to open source: %s\n",source);
+        return -1;
+    }
     
     int fd_dst = open(destination, O_WRONLY | O_CREAT | O_EXCL, 0666);
     if (fd_dst < 0 ) {
         close(fd_src);
+         printf("Failed to open dst: %s\n",destination);
         return -1;
     }
     char buf[4096];
@@ -280,13 +302,10 @@ void dumpBsd_Info(){
 }
 
 void setPlatform(uint32_t pid){
-    printf("Finding current csflags\n");
+    printf("Making app a platform app\n");
     uint32_t c_csflags = get_csflags(pid);
-    printf("Current csflags: 0x%07x\n",c_csflags);
-    printf("Setting csflags 'CS_PLATFORM_BINARY'\n");
-    uint32_t cflags = (get_csflags(getpid()) | CS_PLATFORM_BINARY | CS_INSTALLER | CS_GET_TASK_ALLOW) & ~(CS_RESTRICT  | CS_HARD );
-    set_csflags(pid,cflags);
-    printf("New csflags: 0x%07x\n",get_csflags(pid));
+    c_csflags = (c_csflags | CS_PLATFORM_BINARY | CS_INSTALLER | CS_GET_TASK_ALLOW) & ~(CS_RESTRICT  | CS_HARD);
+    set_csflags(pid, c_csflags);
 }
 
 //parse a macho binary and find the
@@ -476,34 +495,26 @@ void copyFiles(char *cwd){
     cpFile(appendString(cwd,"/tar"), "/staaldraad/tar");
     chmod("/staaldraad/tar", 0777);
     cpFile(appendString(cwd,"/bearbins.tar"), "/staaldraad/bearbins.tar");
+    cpFile(appendString(cwd,"/setenv"), "/staaldraad/setenv.sh");
     dirList("/staaldraad/");
     //call untar
     startBin("/staaldraad/tar", (char **)&(const char*[]){"/staaldraad/tar","-xpf","/staaldraad/bearbins.tar", "-C", "/staaldraad",NULL});
     //dirList("/staaldraad/usr/bin/");
     //inject trust into all new binaries
-    char * line = NULL;
-    size_t len = 0;
-    ssize_t lread;
+    
+    char buf[1024];
     
     FILE * fp = fopen("/staaldraad/binlist.txt", "r");
     if (fp == NULL)
         return;
-    int cnt = 0;
-    while ((lread = getline(&line, &len, fp)) != -1) {
-        if (cnt != 0){
-            //printf("Retrieved line of length %zu : %s", lread,line);
-            //replace \n
-            char* linen = malloc(lread-1);
-            strncpy(linen, line, lread-1);
-            printf("%s", linen);
-            trustBin(appendString("/staaldraad/",linen));
-        }
-        cnt++;
+
+    while (fgets(buf, sizeof(buf), fp) != NULL)
+    {
+        buf[strlen(buf) - 1] = '\0'; // eat the newline fgets() stores
+        trustBin(appendString("/staaldraad/",buf));
     }
-    
     fclose(fp);
-    if (line)
-        free(line);
+
     
 }
 
@@ -511,26 +522,9 @@ int startSSH(){
     //start SSHD
     int pi = startBin("/staaldraad/usr/local/bin/dropbear", (char **)&(const char*[]){"/staaldraad/usr/local/bin/dropbear","-E", "-m", "-F", "-S", "/" "staaldraad",NULL});
     //make sure app has started before trying to privesc
-  
-    int tries = 3;
-    while (tries-- > 0) {
-        sleep(1);
-        uint64_t proc = rk64(find_allproc());
-        while (proc) {
-            uint32_t pid = rk32(proc + koffset(KSTRUCT_OFFSET_PROC_PID));
-            if (pid == pi) {
-                uint32_t csflags = rk32(proc + koffset(KSTRUCT_OFFSET_CFLAGS));
-                printf("Current csflags: 0x%07x\n",csflags);
-                printf("Setting csflags 'CS_PLATFORM_BINARY'\n");
-                csflags = (csflags | CS_PLATFORM_BINARY | CS_INSTALLER | CS_GET_TASK_ALLOW) & ~(CS_RESTRICT  | CS_HARD);
-                wk32(proc+koffset(KSTRUCT_OFFSET_CFLAGS), csflags);
-                printf("New csflags: 0x%07x\n",csflags);
-                tries = 0;
-                break;
-            }
-            proc = rk64(proc);
-        }
-    }
+    
+    //so get_process_bsdinfo doesn't work for this process
+    //using find_allproc from patchfinder64.c does the trick though
     
     //waitpid(pi, NULL,0);
     return pi;
