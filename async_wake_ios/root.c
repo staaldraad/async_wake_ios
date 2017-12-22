@@ -426,6 +426,7 @@ char* appendString(char *str1, char *str2){
     return new_str;
 }
 
+//based on injecttrust by stek29
 int trustBin(const char *bin){
     printf("Injecting trust for application: %s\n",bin);
     size_t size = 0;
@@ -436,7 +437,6 @@ int trustBin(const char *bin){
     void* cs_blob = find_cs_blob(file_buf);
     uint8_t* cs_hash = malloc(CC_SHA256_DIGEST_LENGTH);
     hash_cd_256(cs_blob, cs_hash);
-    //printf("cs_hash: %s\n",cs_hash);
     
     typedef char hash_t[20];
     
@@ -453,8 +453,8 @@ int trustBin(const char *bin){
     static uint64_t last_injected = 0;
     
     fake_chain.next = rk64(tc);
-    *(uint64_t *)&fake_chain.uuid[0] = 0xabadbabeabadbabe;
-    *(uint64_t *)&fake_chain.uuid[8] = 0xabadbabeabadbabe;
+    *(uint64_t *)&fake_chain.uuid[0] = 0xfffffffff0000000;
+    *(uint64_t *)&fake_chain.uuid[8] = 0xfffffffff0000000;
     fake_chain.count = 1;
     
     memmove(fake_chain.hash[0], cs_hash, 20);
@@ -464,7 +464,6 @@ int trustBin(const char *bin){
     kwrite(kernel_trust, &fake_chain, sizeof(fake_chain));
     last_injected = kernel_trust;
     
-    // Comment this line out to see `amfid` saying there is no signature on test_fsigned (or your binary)
     wk64(tc, kernel_trust);
     
     return 1;
@@ -475,13 +474,12 @@ uint32_t startBin(const char *bin,const char* args[]){
     if (trustBin(bin) == -1){
         return 0;
     }
-    //return 0;
     
     printf("Spawning binary application: %s\n",bin);
     int pid;
     int rv = posix_spawn(&pid, bin, NULL, NULL, (char**)args, NULL);
     printf("Application started, has pid: %d, rv=%d\n",pid,rv);
-    //waitpid(pid, NULL, 0);
+    
     sleep(5);
     return pid;
 }
@@ -499,9 +497,8 @@ void copyFiles(char *cwd){
     dirList("/staaldraad/");
     //call untar
     startBin("/staaldraad/tar", (char **)&(const char*[]){"/staaldraad/tar","-xpf","/staaldraad/bearbins.tar", "-C", "/staaldraad",NULL});
-    //dirList("/staaldraad/usr/bin/");
+
     //inject trust into all new binaries
-    
     char buf[1024];
     
     FILE * fp = fopen("/staaldraad/binlist.txt", "r");
