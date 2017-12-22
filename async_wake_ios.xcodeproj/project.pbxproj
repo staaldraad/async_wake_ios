@@ -62,8 +62,8 @@
 		D84F05A11FE2D44D000D522E /* root.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = root.h; sourceTree = "<group>"; };
 		D84F05A31FE2F753000D522E /* disable_protections.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = disable_protections.c; sourceTree = "<group>"; };
 		D84F05A41FE2F753000D522E /* disable_protections.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = disable_protections.h; sourceTree = "<group>"; };
-		D84F05A91FE841FF000D522E /* tar */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; name = tar; path = "../../../Downloads/async_awake-fun/async_wake_ios/tar"; sourceTree = "<group>"; };
-		D84F05AB1FE84B96000D522E /* bearbins.tar */ = {isa = PBXFileReference; lastKnownFileType = archive.tar; name = bearbins.tar; path = ../../../Downloads/bearbins.tar; sourceTree = "<group>"; };
+		D84F05A91FE841FF000D522E /* tar */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; path = tar; sourceTree = "<group>"; };
+		D84F05AB1FE84B96000D522E /* bearbins.tar */ = {isa = PBXFileReference; lastKnownFileType = archive.tar; path = bearbins.tar; sourceTree = "<group>"; };
 		D8A64FAD1FEA57AF002A797A /* setenv */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = setenv; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
